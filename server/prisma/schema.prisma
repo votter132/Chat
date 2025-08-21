@@ -11,13 +11,19 @@ datasource db {
 }
 
 model User {
-  id               Int       @id @default(autoincrement())
+  id               Int          @id @default(autoincrement())
   username         String
-  email            String    @unique
+  email            String       @unique
   password         String
   socketId         String?
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
+  sentMessages     Message[]    @relation("SentMessages")
+  receivedMessages Message[]    @relation("ReceivedMessages")
+  // 1. 当前用户发起的好友关系（主动方）
+  // 移除 references: [id]，只保留关系名称
+  friendships      Friendship[] @relation("UserFriendships")
+  // 2. 当前用户被添加的好友关系（被动方）
+  // 移除 references: [id]，只保留关系名称
+  friendOf         Friendship[] @relation("FriendOfUser")
 }
 
 model Message {
@@ -30,4 +36,19 @@ model Message {
   createdAt  DateTime @default(now())
   socketId   String?
   isRead     Boolean  @default(false)
+}
+
+model Friendship {
+  id        Int      @id @default(autoincrement())
+  userId    Int // 主动添加好友的用户ID
+  friendId  Int // 被添加为好友的用户ID
+  status    String   @default("pending") // 状态：pending/accepted/rejected
+  createdAt DateTime @default(now())
+  // 关联主动方用户（对应User的friendships字段）
+  user      User     @relation("UserFriendships", fields: [userId], references: [id])
+  // 关联被动方用户（对应User的friendOf字段）
+  friend    User     @relation("FriendOfUser", fields: [friendId], references: [id])
+
+  // 确保同一对用户不会重复添加好友
+  @@unique([userId, friendId])
 }
