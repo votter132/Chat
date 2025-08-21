@@ -13,6 +13,9 @@ const socket = io('http://localhost:3000', {
   }
 }); //地址
 const friendList = ref([]) //好友列表
+const dialogVisible = ref(false)
+const friendSearch = ref('')
+const searchResult = ref() // 搜索结果
 // 发送的消息对象
 const sendMsg = {
   reciveName: '',
@@ -61,10 +64,20 @@ const keyDown = async () => {
     textarea.value = ''
   }
 }
+// 打开添加好友弹窗
+const openDialog = () => {
+  dialogVisible.value = true
+}
 // 获取好友列表
 const getUserFriends = async () => {
   const res = await axios.post('http://localhost:3000/getFriends', { id: userStore.userInfo.id })
+  console.log(res.data)
   friendList.value = res.data.data
+}
+const searchFriend = async () => {
+  const res = await axios.post('/searchFriend', { email: friendSearch.value })
+  console.log(res)
+  searchResult.value = res.data.data
 }
 onMounted(() => {
   getUserFriends()
@@ -72,6 +85,26 @@ onMounted(() => {
 </script>
 
 <template>
+  <el-dialog v-model="dialogVisible" title="添加好友" width="500" ref="dialogRef">
+    <span>请输入好友的名称/邮箱</span>
+    <el-input v-model="friendSearch" placeholder="请输入..." style="margin-top: 10px;"></el-input>
+    <div class="serach-box" style="height: 60px;margin-top: 20px;display: flex;">
+      <img style="width: 60px; height: 60px;border-radius: 50%;margin-right: 20px;" src="../assets/tx.jpg"
+        mode="scaleToFill" />
+      <div style="height: 60px; display: flex;flex-direction: column;justify-content: center;">
+        <text style="margin-top: 4px;">{{ searchResult?.username || 'Votter' }}</text>
+        <text>{{ searchResult?.email || '792045515@qq.com' }}</text>
+      </div>
+    </div>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="searchFriend">
+          搜索
+        </el-button>
+      </div>
+    </template>
+  </el-dialog>
   <div class="box">
     <header>
       <nav>
@@ -85,8 +118,9 @@ onMounted(() => {
     </header>
     <div class="body">
       <aside>
-        <div>
-          <el-button type="primary" style="width: 100%;margin: 0 auto;">添加好友</el-button>
+        <div style="text-align: center;">
+          <el-button type="primary" style="width: 100%;box-sizing: border-box; margin: 0 auto 10px;"
+            @click="openDialog">添加好友</el-button>
         </div>
         <div :class="{ friend: true, active: activeIndex === item.id }" v-for="(item, index) in userList"
           :key="item.socketId" @click="changeUser(item)">
