@@ -1,39 +1,71 @@
 <script setup>
 import { ref } from 'vue'
-import { useStore } from '../stores/counter'
+import { useUserStore } from '../stores'
 import { io } from "https://cdn.socket.io/4.7.4/socket.io.esm.min.js";
-const user = useStore()
+import axios from 'axios';
+const userStore = useUserStore()
+const textarea = ref('')
+const activeIndex = ref()
 const socket = io('http://localhost:3000', {
   query: {
-    username: user.username
+    username: userStore.userInfo.username,
+    id: userStore.userInfo.id
   }
 }); //地址
 const userList = ref([]) //在线用户列表
+// 发送的消息对象
 const sendMsg = {
-  username: user.username,
-  to: ''
+  reciveName: '',
+  sendName: userStore.userInfo.username,
+  sendId: '',
+  reciveId: '',
+  toSocketId: '',
+  msg: ''
 }
 socket.on('userList', (users) => {
   userList.value = users
   console.log('在线用户列表:', users)
 })
-const msgBox = ref({})   // 消息列表
-const keyDown = () => {
+
+socket.on('message', (data) => {
+  msgBox.value.push({
+    sendName: data.sendName,
+    sendId: data.sendId,
+    reciveId: data.reciveId,
+    reciveName: data.reciveName,
+    msg: data.msg
+  })
+})
+const msgBox = ref([])   // 消息列表
+const changeUser = (item) => {
+  activeIndex.value = item.id
+  sendMsg.toSocketId = item.socketId
+  sendMsg.reciveId = item.id
+  sendMsg.reciveName = item.username
+  console.log(sendMsg);
+
+}
+const keyDown = async () => {
+
   if (textarea.value.trim() === '') {
     return
   }
-  socket.emit('send', {
-    ...sendMsg,
-    content: textarea.value
-  })
-  msgBox.value.push({
-    ...sendMsg,
-    content: textarea.value
-  })
-  textarea.value = ''
+  sendMsg.msg = textarea.value
+  sendMsg.sendId = userStore.userInfo.id
+  console.log(sendMsg);
+
+  const res = await axios.post('http://localhost:3000/sendMsg', sendMsg)
+  console.log(res);
+
+  if (res.data.code) {
+    msgBox.value.push({
+      ...sendMsg,
+      msg: textarea.value
+    })
+    textarea.value = ''
+  }
 }
-const textarea = ref('')
-const activeIndex = ref()
+
 </script>
 
 <template>
@@ -51,8 +83,8 @@ const activeIndex = ref()
     </header>
     <div class="body">
       <aside>
-        <div :class="{ friend: true, active: activeIndex === item.id }" v-for="(item, index) in userList" :key="item.id"
-          @click="activeIndex = item.id; sendMsg.to = item.id">
+        <div :class="{ friend: true, active: activeIndex === item.id }" v-for="(item, index) in userList"
+          :key="item.socketId" @click="changeUser(item)">
           <img class="image" src="../assets/tx.jpg" alt="">
           <div class="text">{{ item.username }}</div>
         </div>
@@ -60,14 +92,23 @@ const activeIndex = ref()
       <main>
         <el-card class="box-card">
           <div class="card-content">
-            <div class="friend">
-              <img class="image" src="../assets/tx.jpg" alt="">
-              <div class="text ">Votter</div>
-            </div>
-            <div class="right-box">
+            <div :class="item.sendId === userStore.userInfo.id ? 'right-box' : ''" v-for="(item, index) in msgBox"
+              :key="index">
               <div class="friend">
-                <div class="text ">Votter</div>
-                <img class="image" src="../assets/tx.jpg" alt="">
+                <template v-if="item.sendId === userStore.userInfo.id">
+                  <div class="text">{{ item.msg }}</div>
+                  <div>
+                    <img class="image" src="../assets/tx.jpg" alt="">
+                    {{ userStore.userInfo.username }}
+                  </div>
+                </template>
+                <template v-else>
+                  <div>
+                    <img class="image" src="../assets/tx.jpg" alt="">
+                    {{ item.sendName }}
+                  </div>
+                  <div class="text">{{ item.msg }}</div>
+                </template>
               </div>
             </div>
           </div>
