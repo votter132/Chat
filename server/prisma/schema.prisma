@@ -29,4 +29,5 @@ model Message {
   receiverId Int
   createdAt  DateTime @default(now())
   socketId   String?
+  isRead     Boolean  @default(false)
 }
