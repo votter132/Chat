@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useUserStore } from '../stores'
 import { io } from "https://cdn.socket.io/4.7.4/socket.io.esm.min.js";
 import axios from 'axios';
@@ -12,7 +12,7 @@ const socket = io('http://localhost:3000', {
     id: userStore.userInfo.id
   }
 }); //地址
-const userList = ref([]) //在线用户列表
+const friendList = ref([]) //好友列表
 // 发送的消息对象
 const sendMsg = {
   reciveName: '',
@@ -22,11 +22,7 @@ const sendMsg = {
   toSocketId: '',
   msg: ''
 }
-socket.on('userList', (users) => {
-  userList.value = users
-  console.log('在线用户列表:', users)
-})
-
+// 接受消息
 socket.on('message', (data) => {
   msgBox.value.push({
     sendName: data.sendName,
@@ -37,16 +33,16 @@ socket.on('message', (data) => {
   })
 })
 const msgBox = ref([])   // 消息列表
+// 切换聊天对象
 const changeUser = (item) => {
   activeIndex.value = item.id
   sendMsg.toSocketId = item.socketId
   sendMsg.reciveId = item.id
   sendMsg.reciveName = item.username
   console.log(sendMsg);
-
 }
+// 发送消息方法
 const keyDown = async () => {
-
   if (textarea.value.trim() === '') {
     return
   }
@@ -65,7 +61,14 @@ const keyDown = async () => {
     textarea.value = ''
   }
 }
-
+// 获取好友列表
+const getUserFriends = async () => {
+  const res = await axios.post('http://localhost:3000/getFriends', { id: userStore.userInfo.id })
+  friendList.value = res.data.data
+}
+onMounted(() => {
+  getUserFriends()
+})
 </script>
 
 <template>
@@ -76,13 +79,15 @@ const keyDown = async () => {
           @select="handleSelect">
           <el-menu-item index="0" style="font-size: 28px;">
             C h a t
-            <!-- <img style="width: 100px" src="/images/element-plus-logo.svg" alt="Element logo" /> -->
           </el-menu-item>
         </el-menu>
       </nav>
     </header>
     <div class="body">
       <aside>
+        <div>
+          <el-button type="primary" style="width: 100%;margin: 0 auto;">添加好友</el-button>
+        </div>
         <div :class="{ friend: true, active: activeIndex === item.id }" v-for="(item, index) in userList"
           :key="item.socketId" @click="changeUser(item)">
           <img class="image" src="../assets/tx.jpg" alt="">

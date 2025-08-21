@@ -50,14 +50,14 @@ io.on('connection', async (socket) => {
   })
   socket.on('disconnect', async (data) => {
     console.log('已断开连接')
-    const res = await prisma.user.update({
-      where: {
-        socketId: socket.id
-      },
-      data: {
-        socketId: ''
-      }
-    })
+    // const res = await prisma.user.update({
+    //   where: {
+    //     socketId: socket.id
+    //   },
+    //   data: {
+    //     socketId: ''
+    //   }
+    // })
   })
 })
 // 注册接口
@@ -174,6 +174,61 @@ app.post('/sendMsg', async (req, res) => {
     )
   }
 })
+
+// 获取好友列表
+app.post('/getFriends', async (req, res) => {
+  try {
+    // 查询当前用户的好友关系，包含好友的详细信息
+    const userWithFriends = await prisma.user.findUnique({
+      where: {
+        id: req.body.id, // 根据实际情况替换获取userId的方式
+      },
+      include: {
+        // 查询当前用户主动发起的好友关系（已接受的）
+        friendships: {
+          where: {
+            status: 'accepted', // 只获取已接受的好友关系，可根据需求调整
+          },
+          include: {
+            friend: true, // 包含好友的用户信息
+          },
+        },
+        // 查询当前用户被他人添加的好友关系（已接受的）
+        friendOf: {
+          where: {
+            status: 'accepted', // 只获取已接受的好友关系，可根据需求调整
+          },
+          include: {
+            user: true, // 包含发起好友关系的用户信息（即好友的信息）
+          },
+        },
+      },
+    });
+
+    // 整合主动发起和被动接受的好友信息
+    const friends = [
+      ...userWithFriends.friendships.map((f) => f.friend),
+      ...userWithFriends.friendOf.map((f) => f.user),
+    ];
+
+    // 去重（防止同一好友在主动和被动关系中重复出现，可选操作，根据业务需求决定）
+    const uniqueFriends = [...new Map(friends.map((friend) => [friend.id, friend])).values()];
+
+    res.json({
+      code: 1,
+      data: uniqueFriends,
+      msg: '获取好友列表成功'
+    })
+  }
+  catch (error) {
+    res.json({
+      code: 0,
+      // data: uniqueFriends,
+      msg: `获取好友列表失败->${error}`
+    })
+  }
+})
+
 server.listen(3000, () => {
   log('服务器已启动，http://localhost:3000')
 })
