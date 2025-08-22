@@ -1,7 +1,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useUserStore } from '../stores'
-import { io } from "https://cdn.socket.io/4.7.4/socket.io.esm.min.js";
+import { io } from "https://cdn.socket.io/4.7.4/socket.io.esm.min.js"
+import { ElMessage } from 'element-plus'
 import axios from 'axios';
 const userStore = useUserStore()
 const textarea = ref('')
@@ -15,7 +16,12 @@ const socket = io('http://localhost:3000', {
 const friendList = ref([]) //好友列表
 const dialogVisible = ref(false)
 const friendSearch = ref('')
-const searchResult = ref() // 搜索结果
+const searchResult = ref({
+  id: '',
+  email: '',
+  username: '',
+  msg: ''
+}) // 搜索结果
 // 发送的消息对象
 const sendMsg = {
   reciveName: '',
@@ -68,16 +74,31 @@ const keyDown = async () => {
 const openDialog = () => {
   dialogVisible.value = true
 }
+
 // 获取好友列表
 const getUserFriends = async () => {
   const res = await axios.post('http://localhost:3000/getFriends', { id: userStore.userInfo.id })
   console.log(res.data)
   friendList.value = res.data.data
 }
+// 搜索好友
 const searchFriend = async () => {
-  const res = await axios.post('/searchFriend', { email: friendSearch.value })
+  const res = await axios.post('http://localhost:3000/searchFriend', { email: friendSearch.value })
   console.log(res)
-  searchResult.value = res.data.data
+  if (res.data.code == 1) {
+    searchResult.value = res.data.data
+  } else {
+    searchResult.value.msg = res.data.msg
+  }
+}
+// 添加好友 
+const addFriend = async () => {
+  const res = await axios.post('http://localhost:3000/addFriend', { userId: userStore.userInfo.id, friendId: searchResult.value.id })
+  if (res.data.code == 1) {
+    ElMessage.success('添加成功,等待对方验证')
+  } else {
+    ElMessage.error('添加失败')
+  }
 }
 onMounted(() => {
   getUserFriends()
@@ -88,13 +109,20 @@ onMounted(() => {
   <el-dialog v-model="dialogVisible" title="添加好友" width="500" ref="dialogRef">
     <span>请输入好友的名称/邮箱</span>
     <el-input v-model="friendSearch" placeholder="请输入..." style="margin-top: 10px;"></el-input>
-    <div class="serach-box" style="height: 60px;margin-top: 20px;display: flex;">
-      <img style="width: 60px; height: 60px;border-radius: 50%;margin-right: 20px;" src="../assets/tx.jpg"
-        mode="scaleToFill" />
-      <div style="height: 60px; display: flex;flex-direction: column;justify-content: center;">
-        <text style="margin-top: 4px;">{{ searchResult?.username || 'Votter' }}</text>
-        <text>{{ searchResult?.email || '792045515@qq.com' }}</text>
+    <div v-if="searchResult.id != ''" class="serach-box"
+      style="height: 60px;margin-top: 20px;display: flex;align-items: center;justify-content: space-between;">
+      <div style="display: flex;">
+        <img style="width: 60px; height: 60px;border-radius: 50%;margin-right: 20px;" src="../assets/tx.jpg"
+          mode="scaleToFill" />
+        <div style="height: 60px; display: flex;flex-direction: column;justify-content: center;">
+          <text style="margin-top: 4px;">{{ searchResult?.username || 'Votter' }}</text>
+          <text>{{ searchResult?.email || '792045515@qq.com' }}</text>
+        </div>
       </div>
+      <el-button type="success" @click="addFriend">添加好友</el-button>
+    </div>
+    <div v-else>
+      <h3>{{ searchResult.msg }}</h3>
     </div>
     <template #footer>
       <div class="dialog-footer">

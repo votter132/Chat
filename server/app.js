@@ -50,14 +50,6 @@ io.on('connection', async (socket) => {
   })
   socket.on('disconnect', async (data) => {
     console.log('已断开连接')
-    // const res = await prisma.user.update({
-    //   where: {
-    //     socketId: socket.id
-    //   },
-    //   data: {
-    //     socketId: ''
-    //   }
-    // })
   })
 })
 // 注册接口
@@ -225,6 +217,54 @@ app.post('/getFriends', async (req, res) => {
       code: 0,
       // data: uniqueFriends,
       msg: `获取好友列表失败->${error}`
+    })
+  }
+})
+// 搜索用户
+app.post('/searchFriend', async (req, res) => {
+  try {
+    // 通过email搜索用户
+    const { email } = req.body
+    const data = await prisma.user.findFirst({
+      where: {
+        email
+      }
+    })
+    console.log(data)
+    if (data) {
+      res.json({
+        code: 1,
+        data: { id: data.id, username: data.username, email: data.email },
+        msg: '搜索成功'
+      })
+    } else {
+      res.json({
+        code: 0,
+        msg: '用户不存在'
+      })
+    }
+  }
+  catch (err) {
+    res.json({
+      code: 0,
+      msg: `接口错误->${err}`
+    })
+  }
+
+})
+// 添加好友
+app.post('/addFriend', async (req, res) => {
+  const { userId, friendId } = req.body
+  const data = await prisma.friendship.create({
+    data: {
+      userId,
+      friendId
+    }
+  })
+  console.log(data)
+  if (data) {
+    res.json({
+      添
     })
   }
 })
